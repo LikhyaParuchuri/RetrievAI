@@ -1,225 +1,183 @@
-## RetrievAI — A Role-Aware, Knowledge-Augmented Conversational Agent
+# RetrievAI — Enterprise-Grade Access Control for AI Systems
 
-RetrievAI is a dual-RBAC (Role-Based Access Control), retrieval-augmented AI chatbot designed for secure enterprise environments. It combines dense semantic retrieval, grounded generation, and fine-grained permission filtering to deliver accurate, cited, and policy-compliant responses for users across three access levels:
+> 🏆 **Distinguished Project Award** — Texas A&M University – Corpus Christi, December 2024
 
-🔵 Public Users – read-only, high-level summaries
+A dual-layer Role-Based Access Control (RBAC) system built on top of a Retrieval-Augmented Generation (RAG) pipeline, designed to solve a critical gap in enterprise AI deployments: **LLMs that hallucinate, leak sensitive data, and ignore organizational permissions.**
 
-🟡 Internal Users – detailed operational content
+RetrievAI enforces fine-grained access control, eliminates unauthorized data disclosure, and delivers auditable, cited responses — making it suitable for security-sensitive enterprise environments.
 
-🔴 Private/Admin Users – full access, including document updates + flagging
+---
 
-RetrievAI demonstrates how real organizations can integrate RAG (Retrieval-Augmented Generation) with security, freshness, and auditability—features missing in most traditional chatbots.
+## 🔒 Security-First Design
 
-🚀 Key Features
-✅ Dual-RBAC Enforcement
+Most RAG systems focus on accuracy. RetrievAI focuses on **security and trust first.**
 
-RetrievAI enforces permissions at two levels:
+| Security Property | Implementation |
+|---|---|
+| Zero unauthorized disclosure | Dual-layer RBAC at retrieval + response time |
+| No hallucinations | LLM restricted to retrieved evidence only |
+| Auditability | Every response cites exact source files |
+| Fail-safe behavior | Returns "Insufficient authorized information" when evidence is missing |
+| Freshness without retraining | Hot-reload indexing on document updates |
 
-Folder-Level RBAC — Public, Internal, Private directories
+---
 
-In-Document RBAC — CATEGORY: PUBLIC / INTERNAL / PRIVATE sections inside mixed documents
+## 📊 Quantitative Results
 
-This ensures zero leakage and fine-grained control.
+| Metric | Result |
+|---|---|
+| **RBAC Violations** | **0%** — zero unauthorized disclosures |
+| Groundedness | 92% of answer sentences supported by retrieved evidence |
+| Citation Accuracy | 95% file-title match under rehydration |
+| Hallucination Reduction | 63% reduction vs. retrieval-only baseline |
+| Refusal Rate | 17% — correct behavior when evidence is insufficient |
+| Latency (local hardware) | P50: 180ms / P95: 430ms |
 
-🔍 Dense Semantic Retrieval
+---
 
-Uses OpenAI embeddings (text-embedding-3-large)
+## 🏗️ How the Security Model Works
 
-Vector similarity search powered by NumPy
+RetrievAI enforces permissions at **two independent layers**, preventing data leakage even in edge cases:
 
-Chunk metadata includes file name + role for traceability
+### Layer 1 — Folder-Level RBAC (Coarse-Grained)
+Documents are stored under role-segregated directories:
+```
+Data/raw/
+├── Public/       # All users
+├── Internal/     # Internal + Private users only
+└── Private/      # Admin only
+```
+Chunks outside a user's permission cascade are discarded before retrieval.
 
-🧩 Custom Chunker
+### Layer 2 — In-Document RBAC (Fine-Grained)
+Mixed-sensitivity documents are split at section boundaries using explicit role markers:
+```
+CATEGORY: PUBLIC
+CATEGORY: INTERNAL
+CATEGORY: PRIVATE
+```
+Each chunk inherits its own section-level role — independent of the file's folder role.
 
-Each document is segmented into ~1–2k character chunks with:
+### Permission Cascade
+```
+Public  →  Public chunks only
+Internal  →  Internal + Public chunks
+Private  →  Private + Internal + Public chunks
+```
 
-FILE:<filename> CATEGORY:<role>
+### Access Flow
+```
+User Login (Role) → RBAC Filter → Retriever (role-scoped) → LLM Generator → RBAC Filter → Cited Response
+```
+Even if a document lives in `Private/`, fine-grained Internal/Private chunks are withheld from lower-privilege users. **Zero leakage by design.**
 
+---
 
-This enables exact rehydration and precise citation.
+## ✨ Key Features
 
-⚡ Hot-Reload Indexing
+- **Dual-RBAC Enforcement** — folder-level + in-document permission filtering
+- **Dense Semantic Retrieval** — OpenAI `text-embedding-3-large` with NumPy vector similarity
+- **Custom Chunker** — paragraph/sentence-aware segmentation with anchor tags (`FILE:<name> CATEGORY:<role>`) for exact rehydration and citation traceability
+- **Hot-Reload Indexing** — Admin users can flag, upload, and trigger re-indexing with no server restart
+- **Grounded Generation** — LLM answers only from retrieved evidence; refuses when context is insufficient
+- **Token-Based Authentication** — role assignment enforced at login
 
-Private/Admin users can:
+---
 
-Flag documents
+## 🛠️ Tech Stack
 
-Upload updated files
+| Layer | Tools |
+|---|---|
+| Backend | FastAPI, Uvicorn, Python 3.11 |
+| Retrieval | NumPy, OpenAI Embeddings API |
+| Document Handling | pypdf, regex-based role parser |
+| Security | Dual RBAC, token-based authentication |
+| Frontend | HTML / CSS / JS |
+| Storage | Role-segregated local file system |
 
-Trigger automatic re-indexing
+---
 
-Retriever reloads instantly—no server restart needed
+## ⚙️ Setup
 
-🧠 Grounded Generation
+```bash
+# 1. Clone
+git clone https://github.com/sreesus-1/RetrievAI.git
+cd RetrievAI
 
-LLM outputs only from retrieved evidence:
+# 2. Install dependencies
+pip install -r requirements.txt
 
-No hallucinations
+# 3. Configure environment
+echo "OPENAI_API_KEY=your_key" > .env
+echo "OPENAI_MODEL=gpt-4o-mini" >> .env
 
-If insufficient evidence → returns
-“Insufficient authorized information.”
+# 4. Start backend
+uvicorn backend.main:app --reload
 
-📊 Three-Level Access Demo
+# 5. Open frontend
+open frontend/index.html
+```
 
-Your demo includes examples for:
+---
 
-Public user responses
+## 📁 Project Structure
 
-Internal user cascade
-
-Private (Admin) detailed responses
-
-Flagging → re-indexing → updated retrieval
-
-🏗️ System Architecture
-User → Login (Role) → RBAC Filter → Retriever → LLM Generator → RBAC Filter → Response
-
-Components:
-
-main.py – FastAPI router + endpoints
-
-auth.py – Minimal token-based login
-
-retriever.py – Dense embedding index, chunk filtering
-
-indexer.py – Chunking + embedding building
-
-chat.py – RAG generation + refusal logic
-
-Data/raw/ – public, internal, private folders
-
-### 📁 Folder Structure
-
-```text
+```
 RetrievAI/
 ├── backend/
-│   ├── main.py
-│   ├── auth.py
-│   ├── retriever.py
-│   ├── indexer.py
-│   ├── chat.py
-│   └── utils.py
-│
+│   ├── main.py        # FastAPI router + endpoints
+│   ├── auth.py        # Token-based authentication
+│   ├── retriever.py   # Dense embedding index + chunk filtering
+│   ├── indexer.py     # Chunking + embedding pipeline
+│   └── chat.py        # RAG generation + refusal logic
 ├── Data/
 │   └── raw/
 │       ├── Public/
 │       ├── Internal/
 │       └── Private/
-│
-├── frontend/
-│   ├── index.html
-│   ├── app.js
-│   └── styles.css
-│
-├── README.md
-└── requirements.txt
+└── frontend/
+    └── index.html
 ```
 
+---
 
-🛠️ Tech Stack
-Layer	Tools
-Backend	FastAPI, Uvicorn
-Retrieval	NumPy, OpenAI embeddings
-Document handling	pypdf, regex
-Security	Dual RBAC, token authentication
-Frontend	HTML/CSS/JS
-Storage	Local file system (Public/Internal/Private)
-⚙️ Installation & Setup
-1. Clone repository
-git clone https://github.com/sreesus-1/RetrievAI.git
-cd RetrievAI
+## 🧪 Experiment Summary
 
-2. Install dependencies
-pip install -r requirements.txt
+Three user roles were evaluated across 75 queries (25 per role) spanning academic, financial, administrative, and HR categories.
 
-3. Add .env file
-OPENAI_API_KEY=your_key
-OPENAI_MODEL=gpt-4o-mini
+**Findings:**
+- Public users received high-level summaries; sensitive content was withheld automatically
+- Internal users received operationally detailed responses unavailable to public users
+- Private/Admin users received full content including contact information and procedural data
+- Document flagging → re-indexing → updated retrieval worked end-to-end with no server restart
+- No role violations were observed across any test condition
 
-4. Run backend
-uvicorn backend.main:app --reload
+---
 
-5. Open frontend
+## 📘 Use Cases
 
-Open in browser:
+- Enterprise internal knowledge portals
+- HR policy and compliance assistants
+- University helpdesk systems
+- Any environment requiring **safe, auditable LLM responses with access control**
 
-frontend/index.html
+---
 
-🧪 Experiments & Results
-✔ Public vs Internal vs Private Behavior
+## 🔭 Future Work
 
-Public users receive brief, high-level summaries
+- Neural re-ranker for improved retrieval robustness under noisy inputs
+- Cloud deployment with persistent vector storage (FAISS, Qdrant, Pinecone)
+- Multi-agent verification pipeline
+- User studies for usability and trust measurement
 
-Internal users receive operational details
+---
 
-Private users receive full content + contact + procedural data
+## 👥 Authors
 
-✔ Flagging + Re-Indexing
+- Alam K Sathya Chowdary LNU — Texas A&M University – Corpus Christi
+- Ramya Sree Kanijam — Texas A&M University – Corpus Christi  
+- Lakshmi Sahithi Likhya Paruchuri — Texas A&M University – Corpus Christi
 
-Updated documents immediately affect retrieval (Figure shown in paper).
+---
 
-✔ Quantitative Evaluation
-Metric	Result
-Groundedness	92%
-Citation correctness	95%
-RBAC Violations	0%
-Refusal Rate	17% (correct behavior)
-Latency (local)	P50: 180 ms, P95: 430 ms
-📸 Screenshots (Add Your Images Here)
-System Architecture
-
-Login UI
-
-Example: Public Access
-
-Example: Internal Access
-
-Example: Private Access
-
-🔒 Security Model
-
-RetrievAI guarantees:
-
-No unauthorized content retrieval
-
-Document-level + section-level permission filtering
-
-Redaction and refusal when evidence is missing
-
-Traceable citations for every answer
-
-📘 Use Cases
-
-Enterprise helpdesk
-
-University internal knowledge portals
-
-HR policy assistants
-
-Document-sensitive organizations
-
-Any environment needing safe LLM answers
-
-🎯 Future Work
-
-Add neural re-ranker for improved retrieval
-
-Deploy on cloud with persistent storage
-
-Multi-agent support (verification + reranking agent)
-
-User studies for usability + trust metrics
-
-Vector database integration (FAISS, Qdrant, Pinecone)
-
-
-⭐ If you like this project, please star the repository!
-
-
-
-
-
-
-
-
-
+*🏆 Distinguished Project Award — TAMU-CC, December 2024*
